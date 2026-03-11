@@ -2,6 +2,7 @@ using Pulumi;
 using Pulumi.AzureNative.ContainerRegistry;
 using Pulumi.DockerBuild;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace MedInsightAzureAppService
 {
@@ -33,12 +34,15 @@ namespace MedInsightAzureAppService
         public DockerImage(string name, DockerImageArgs args, ComponentResourceOptions? opts = null)
             : base("custom:azure:DockerImage", name, opts)
         {
+            // Sanitize registry name: ACR only allows alphanumeric characters (5-50 chars)
+            var sanitizedRegistryName = SanitizeRegistryName(args.RegistryName);
+
             // Azure Container Registry
             Registry = new Registry($"{name}-registry", new Pulumi.AzureNative.ContainerRegistry.RegistryArgs
             {
                 ResourceGroupName = args.ResourceGroupName,
                 Location = args.Location,
-                RegistryName = args.RegistryName,
+                RegistryName = sanitizedRegistryName,
                 Sku = new Pulumi.AzureNative.ContainerRegistry.Inputs.SkuArgs
                 {
                     Name = "Basic",
@@ -98,6 +102,30 @@ namespace MedInsightAzureAppService
             };
 
             RegisterOutputs(outputs);
+        }
+
+        /// <summary>
+        /// Sanitizes a registry name to comply with Azure Container Registry naming rules.
+        /// ACR names must be alphanumeric only, 5-50 characters long.
+        /// </summary>
+        private static string SanitizeRegistryName(string registryName)
+        {
+            // Remove all non-alphanumeric characters and convert to lowercase
+            var sanitized = Regex.Replace(registryName, "[^a-zA-Z0-9]", "").ToLower();
+
+            // Ensure minimum length of 5 characters
+            if (sanitized.Length < 5)
+            {
+                sanitized += "registry";
+            }
+
+            // Ensure maximum length of 50 characters
+            if (sanitized.Length > 50)
+            {
+                sanitized = sanitized.Substring(0, 50);
+            }
+
+            return sanitized;
         }
     }
 }
