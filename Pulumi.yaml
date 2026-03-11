@@ -6,3 +6,12 @@ config:
   pulumi:tags:
     value:
       pulumi:template: azure-csharp
+template:
+  description: Deploy a custom Docker container to Azure App Service with Azure Container Registry
+  config:
+    azure-native:location:
+      description: The Azure region to deploy into
+      default: westus2
+    appName:
+      description: The name of the application
+      default: pulumi-medinsight

@@ -14,7 +14,10 @@ namespace MedInsightAzureAppService
         public Input<string> Location { get; set; } = null!;
         public string AppName { get; set; } = null!;
         public string Sku { get; set; } = "B1";
-        public string Image { get; set; } = "nginxdemos/hello:latest";
+        public Input<string> Image { get; set; } = null!;
+        public Input<string>? RegistryServer { get; set; }
+        public Input<string>? RegistryUsername { get; set; }
+        public Input<string>? RegistryPassword { get; set; }
     }
 
     /// <summary>
@@ -55,9 +58,9 @@ namespace MedInsightAzureAppService
                 Kind = "app,linux",
                 SiteConfig = new SiteConfigArgs
                 {
-                    LinuxFxVersion = $"DOCKER|{args.Image}",
+                    LinuxFxVersion = args.Image.Apply(img => $"DOCKER|{img}"),
                     AlwaysOn = false, // must be False on Basic tier
-                    AppSettings = new[]
+                    AppSettings = new InputList<NameValuePairArgs>
                     {
                         new NameValuePairArgs
                         {
@@ -67,7 +70,19 @@ namespace MedInsightAzureAppService
                         new NameValuePairArgs
                         {
                             Name = "DOCKER_REGISTRY_SERVER_URL",
-                            Value = "https://index.docker.io",
+                            Value = args.RegistryServer != null
+                                ? args.RegistryServer.Apply(s => $"https://{s}")
+                                : Output.Create("https://index.docker.io"),
+                        },
+                        new NameValuePairArgs
+                        {
+                            Name = "DOCKER_REGISTRY_SERVER_USERNAME",
+                            Value = args.RegistryUsername ?? Output.Create(""),
+                        },
+                        new NameValuePairArgs
+                        {
+                            Name = "DOCKER_REGISTRY_SERVER_PASSWORD",
+                            Value = args.RegistryPassword ?? Output.Create(""),
                         },
                         new NameValuePairArgs
                         {

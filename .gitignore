@@ -44,3 +44,10 @@ __pycache__/
 ## Pulumi
 Pulumi.*.yaml
 !Pulumi.dev.yaml
+
+## macOS
+.DS_Store
+
+## User-specific files
+docker/image.png.custom
+*.local
