@@ -109,7 +109,6 @@ namespace MedInsightAzureAppService
                 ["appServicePlanName"] = AppServicePlan.Name,
                 ["appName"] = App.Name,
                 ["appUrl"] = App.DefaultHostName.Apply(h => $"https://{h}"),
-                ["stagingSlotUrl"] = stagingSlot.DefaultHostName.Apply(h => $"https://{h}"),
             };
 
             RegisterOutputs(outputs);
