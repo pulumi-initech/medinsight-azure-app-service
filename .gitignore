@@ -41,10 +41,6 @@ venv/
 __pycache__/
 *.py[cod]
 
-## Pulumi
-Pulumi.*.yaml
-!Pulumi.dev.yaml
-
 ## macOS
 .DS_Store
 
