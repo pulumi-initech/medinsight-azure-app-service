@@ -13,7 +13,7 @@ namespace MedInsightAzureAppService
         public Input<string> ResourceGroupName { get; set; } = null!;
         public Input<string> Location { get; set; } = null!;
         public string AppName { get; set; } = null!;
-        public string Sku { get; set; } = "B1";
+        public string Sku { get; set; } = "S1";
         public Input<string> Image { get; set; } = null!;
         public Input<string>? RegistryServer { get; set; }
         public Input<string>? RegistryUsername { get; set; }
@@ -44,9 +44,36 @@ namespace MedInsightAzureAppService
                 Sku = new SkuDescriptionArgs
                 {
                     Name = args.Sku,
-                    Tier = "Basic",
+                    Tier = "Standard",
                 },
             }, new CustomResourceOptions { Parent = this });
+
+
+            var appSettings = new InputList<NameValuePairArgs>
+                {
+                    new NameValuePairArgs
+                    {
+                        Name = "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+                        Value = "false",
+                    },
+                    new NameValuePairArgs
+                    {
+                        Name = "DOCKER_REGISTRY_SERVER_URL",
+                        Value = args.RegistryServer != null
+                            ? args.RegistryServer.Apply(s => $"https://{s}")
+                            : Output.Create("https://index.docker.io"),
+                    },
+                    new NameValuePairArgs
+                    {
+                        Name = "DOCKER_REGISTRY_SERVER_USERNAME",
+                        Value = args.RegistryUsername ?? Output.Create(""),
+                    },
+                    new NameValuePairArgs
+                    {
+                        Name = "DOCKER_REGISTRY_SERVER_PASSWORD",
+                        Value = args.RegistryPassword ?? Output.Create(""),
+                    }
+                };
 
             // App Service (Web App) - Production
             App = new WebApp($"{name}-app", new WebAppArgs
@@ -55,41 +82,23 @@ namespace MedInsightAzureAppService
                 Location = args.Location,
                 Name = $"{args.AppName}-app",
                 ServerFarmId = AppServicePlan.Id,
-                Kind = "app,linux",
+                Kind = "app,linux,container",
                 SiteConfig = new SiteConfigArgs
                 {
                     LinuxFxVersion = args.Image.Apply(img => $"DOCKER|{img}"),
                     AlwaysOn = false, // must be False on Basic tier
-                    AppSettings = new InputList<NameValuePairArgs>
+                    AppSettings = appSettings.Apply(settings =>
                     {
-                        new NameValuePairArgs
+                        var list = new List<NameValuePairArgs>(settings)
                         {
-                            Name = "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
-                            Value = "false",
-                        },
-                        new NameValuePairArgs
-                        {
-                            Name = "DOCKER_REGISTRY_SERVER_URL",
-                            Value = args.RegistryServer != null
-                                ? args.RegistryServer.Apply(s => $"https://{s}")
-                                : Output.Create("https://index.docker.io"),
-                        },
-                        new NameValuePairArgs
-                        {
-                            Name = "DOCKER_REGISTRY_SERVER_USERNAME",
-                            Value = args.RegistryUsername ?? Output.Create(""),
-                        },
-                        new NameValuePairArgs
-                        {
-                            Name = "DOCKER_REGISTRY_SERVER_PASSWORD",
-                            Value = args.RegistryPassword ?? Output.Create(""),
-                        },
-                        new NameValuePairArgs
-                        {
-                            Name = "ENVIRONMENT",
-                            Value = "production",
-                        },
-                    },
+                            new NameValuePairArgs
+                            {
+                                Name = "ENVIRONMENT",
+                                Value = "production",
+                            },
+                        };
+                        return list;
+                    }),
                 },
                 HttpsOnly = true,
             }, new CustomResourceOptions { Parent = this });
@@ -100,6 +109,7 @@ namespace MedInsightAzureAppService
                 ["appServicePlanName"] = AppServicePlan.Name,
                 ["appName"] = App.Name,
                 ["appUrl"] = App.DefaultHostName.Apply(h => $"https://{h}"),
+                ["stagingSlotUrl"] = stagingSlot.DefaultHostName.Apply(h => $"https://{h}"),
             };
 
             RegisterOutputs(outputs);
